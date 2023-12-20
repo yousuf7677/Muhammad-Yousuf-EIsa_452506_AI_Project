@@ -37,23 +37,26 @@ class SnakeGame:
         self.master.geometry("400x400")
         self.master.resizable(False, False)
 
+        self.difficulty = difficulty
+
         self.canvas = tk.Canvas(self.master, bg="lightblue", width=400, height=400)
         self.canvas.pack()
 
         self.snake = [(100, 100), (90, 100), (80, 100)]
-        self.enemy_snake = [(300, 300), (310, 300), (320, 300)]  # Initial positions for the enemy snake
+        self.enemy_snake = [(300, 300), (310, 300), (320, 300)]
         self.direction = "Right"
-        self.enemy_direction = "Left"  # Initial direction for the enemy snake
+        self.enemy_direction = "Left"
         self.score = 0
         self.enemy_score = 0
 
         self.food = None
         self.obstacles = self.create_obstacles(difficulty)
 
-        self.master.bind("<KeyPress>", self.change_direction)
+        self.master.bind("<KeyPress>", self.handle_keypress)
 
         self.game_over_flag = False
-        self.time_limit = 60  # 60 seconds time limit
+        self.restart_flag = False
+        self.time_limit = 60
         self.start_time = time.time()
         self.update()
 
@@ -99,7 +102,6 @@ class SnakeGame:
 
         head = self.enemy_snake[0]
 
-        # If food is present, make the enemy snake move towards the food
         if self.food:
             food_coords = self.canvas.coords(self.food)
             if head[0] < food_coords[0]:
@@ -113,7 +115,6 @@ class SnakeGame:
 
         new_head = None
 
-        # Ensure the enemy snake doesn't hit the boundary
         while True:
             if self.enemy_direction == "Right":
                 new_head = (head[0] + 20, head[1])
@@ -173,7 +174,6 @@ class SnakeGame:
                 self.food = None
                 self.score += 1
 
-            # Check if the enemy snake has reached the food
             if head_enemy[0] == food_coords[0] and head_enemy[1] == food_coords[1]:
                 self.enemy_snake.append((0, 0))
                 self.canvas.delete(self.food)
@@ -192,35 +192,45 @@ class SnakeGame:
         else:
             self.game_over()
 
-    def change_direction(self, event):
-        if event.keysym == "Right" and not self.direction == "Left":
-            self.direction = "Right"
-        elif event.keysym == "Left" and not self.direction == "Right":
-            self.direction = "Left"
-        elif event.keysym == "Up" and not self.direction == "Down":
-            self.direction = "Up"
-        elif event.keysym == "Down" and not self.direction == "Up":
-            self.direction = "Down"
+    def handle_keypress(self, event):
+        if self.restart_flag and event.keysym == "Return":
+            self.restart_game()
+        elif not self.restart_flag and not self.game_over_flag:
+            if event.keysym == "Right" and not self.direction == "Left":
+                self.direction = "Right"
+            elif event.keysym == "Left" and not self.direction == "Right":
+                self.direction = "Left"
+            elif event.keysym == "Up" and not self.direction == "Down":
+                self.direction = "Up"
+            elif event.keysym == "Down" and not self.direction == "Up":
+                self.direction = "Down"
 
-    def game_over(self):
-        if not self.game_over_flag:
-            winner_text = ""
-            if self.score > self.enemy_score:
-                winner_text = "Congratulations! You Win!"
-            elif self.score < self.enemy_score:
-                winner_text = "Sorry! AI Wins!"
-            else:
-                winner_text = "It's a Tie!"
+    def restart_game(self):
+        self.snake = [(100, 100), (90, 100), (80, 100)]
+        self.enemy_snake = [(300, 300), (310, 300), (320, 300)]
+        self.direction = "Right"
+        self.enemy_direction = "Left"
+        self.score = 0
+        self.enemy_score = 0
 
-            # Display the game over screen
-            self.canvas.create_rectangle(0, 0, 400, 400, fill="black", tags="game_over")
-            self.canvas.create_text(200, 200, text="Game Over!", fill="red", font=("Helvetica", 16), tags="game_over")
-            self.canvas.create_text(200, 220, text=winner_text, fill="red", font=("Helvetica", 16), tags="game_over")
+        # Delete existing food and obstacles
+        if self.food:
+            self.canvas.delete(self.food)
+            self.food = None
+        for obstacle in self.obstacles:
+            self.canvas.delete(obstacle)
+        self.obstacles = self.create_obstacles(self.difficulty)
 
-            self.game_over_flag = True
+        self.game_over_flag = False
+        self.restart_flag = False
+        self.start_time = time.time()
+
+        self.canvas.delete("game_over")
+
+        self.master.bind("<KeyPress>", self.handle_keypress)
+        self.update()
 
     def show_score(self):
-        # Clear previous score text
         self.canvas.delete("score_text")
         self.canvas.delete("time_text")
 
@@ -233,10 +243,28 @@ class SnakeGame:
         time_text = f"Time Left: {max(0, self.time_limit - int(time.time() - self.start_time))}s"
         self.canvas.create_text(200, 50, text=time_text, fill=time_color, font=("Helvetica", 12), anchor="w", tags="time_text")
 
+    def game_over(self):
+        if not self.game_over_flag:
+            winner_text = ""
+            if self.score > self.enemy_score:
+                winner_text = "Congratulations! You Win!"
+            elif self.score < self.enemy_score:
+                winner_text = "Sorry! AI Wins!"
+            else:
+                winner_text = "It's a Tie!"
+
+            self.canvas.create_rectangle(0, 0, 400, 400, fill="black", tags="game_over")
+            self.canvas.create_text(200, 200, text="Game Over! Press Enter to play again", fill="red", font=("Helvetica", 16), tags="game_over")
+            self.canvas.create_text(200, 220, text=winner_text, fill="red", font=("Helvetica", 16), tags="game_over")
+
+            self.game_over_flag = True
+            self.restart_flag = True
+
 if __name__ == "__main__":
     root = tk.Tk()
     difficulty_selector = DifficultySelection(root)
     root.mainloop()
+
 
 
 
